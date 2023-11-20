@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -148,10 +149,20 @@ func main() {
 		if c == 0 {
 			continue
 		}
+
 		newItemsCount += c
 		fmt.Println()
 		fmt.Println(name + ": " + fmt.Sprint(c))
-		for _, item := range items {
+
+		// reverse sort by date
+		reversedItems := items[:] // copy
+		sort.Slice(reversedItems, func(i, j int) bool {
+			a := *reversedItems[i].PublishedParsed
+			b := *reversedItems[j].PublishedParsed
+			return a.After(b)
+		})
+
+		for _, item := range reversedItems {
 			timestamp := item.PublishedParsed.Format(time.RFC3339)
 			timestamp = strings.Split(timestamp, "T")[0]
 			fmt.Println(
