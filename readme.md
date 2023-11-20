@@ -1,4 +1,4 @@
 ```shell
-go build
+go build --ldflags "-s -w"
 ./rss-fetcher list|check
 ```
