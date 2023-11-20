@@ -16,6 +16,13 @@ import (
 
 const lastCheckTimeFilePath = "./last-check.txt"
 
+func listFeeds() {
+	feedsMap := readFeedUrls()
+	for name, url := range feedsMap {
+		fmt.Println(name + ": " + url)
+	}
+}
+
 func updateLastCheckTimeFile(now time.Time) {
 	timeFile, err := os.Create(lastCheckTimeFilePath)
 	if err != nil {
@@ -89,7 +96,7 @@ func requestFeed(url string) string {
 	return string(body)
 }
 
-func main() {
+func checkFeeds() {
 	feedsMap := readFeedUrls()
 
 	now := time.Now()
@@ -118,6 +125,7 @@ func main() {
 
 			// fmt.Println(name)
 			content := requestFeed(url)
+			fmt.Print(".") // progress indicator
 
 			// parse feed
 			parser := gofeed.NewParser()
@@ -142,6 +150,7 @@ func main() {
 	}
 
 	wg.Wait()
+	fmt.Println()
 
 	newItemsCount := 0
 	for name, items := range results {
@@ -175,5 +184,28 @@ func main() {
 
 	if newItemsCount == 0 {
 		fmt.Println("No new items")
+	}
+}
+
+func printUsage() {
+	// name := os.Args[0]
+	name := "<this>"
+	fmt.Println("Usage: ./" + name + " list|check")
+}
+
+func main() {
+	args := os.Args[1:] // skip program name
+	if len(args) != 1 {
+		printUsage()
+		os.Exit(1)
+	}
+	switch args[0] {
+	case "list":
+		listFeeds()
+	case "check":
+		checkFeeds()
+	default:
+		printUsage()
+		os.Exit(1)
 	}
 }
