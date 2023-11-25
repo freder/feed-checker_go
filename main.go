@@ -14,12 +14,14 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
+const feedsFilePath = "../../feeds.json"
 const lastCheckTimeFilePath = "./last-check.txt"
+const maxConcurrency = 3
 
 func listFeeds() {
 	feedsMap := readFeedUrls()
 	for name, url := range feedsMap {
-		fmt.Println(name + ": " + url)
+		fmt.Printf("%s: %s\n", name, url)
 	}
 }
 
@@ -41,7 +43,7 @@ func getLastCheckTime() time.Time {
 	var lastCheckTime time.Time
 
 	if _, err := os.Stat(lastCheckTimeFilePath); os.IsNotExist(err) {
-		lastCheckTime = time.Date(1, 1, 1, 0, 0, 0, 0, time.Local)
+		lastCheckTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
 	} else {
 		bytes, err := os.ReadFile(lastCheckTimeFilePath)
 		if err != nil {
@@ -60,9 +62,7 @@ func getLastCheckTime() time.Time {
 }
 
 func readFeedUrls() map[string]string {
-	const filePath = "../../feeds.json"
-
-	file, err := os.Open(filePath)
+	file, err := os.Open(feedsFilePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error opening file:", err)
 		os.Exit(1)
@@ -97,24 +97,22 @@ func requestFeed(url string) string {
 }
 
 func checkFeeds() {
-	feedsMap := readFeedUrls()
-
 	now := time.Now()
 	lastCheckTime := getLastCheckTime()
 	// TODO: remove — for testing only
-	// lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
+	lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
 
-	// write current time to timeFile
+	// write current time to file
 	updateLastCheckTimeFile(now)
 
 	var wg sync.WaitGroup
 
 	// create a buffered channel (which acts as a semaphone)
 	// to control concurrency
-	maxConcurrency := 2
 	// struct{} is an empty struct, which takes up no memory
 	sem := make(chan struct{}, maxConcurrency)
 
+	feedsMap := readFeedUrls()
 	var results = make(map[string][]*gofeed.Item)
 
 	for name, url := range feedsMap {
@@ -123,7 +121,6 @@ func checkFeeds() {
 			sem <- struct{}{} // blocks if channel is full
 			defer wg.Done()
 
-			// fmt.Println(name)
 			content := requestFeed(url)
 			fmt.Print(".") // progress indicator
 
@@ -136,13 +133,11 @@ func checkFeeds() {
 			}
 
 			filtered := make([]*gofeed.Item, 0)
-
 			for _, item := range feed.Items {
 				if item.PublishedParsed.After(lastCheckTime) {
 					filtered = append(filtered, item)
 				}
 			}
-
 			results[name] = filtered
 
 			<-sem // release
@@ -164,14 +159,13 @@ func checkFeeds() {
 		fmt.Println(name + ": " + fmt.Sprint(c))
 
 		// reverse sort by date
-		reversedItems := items[:] // copy
-		sort.Slice(reversedItems, func(i, j int) bool {
-			a := *reversedItems[i].PublishedParsed
-			b := *reversedItems[j].PublishedParsed
+		sort.Slice(items, func(i, j int) bool {
+			a := *items[i].PublishedParsed
+			b := *items[j].PublishedParsed
 			return a.After(b)
 		})
 
-		for _, item := range reversedItems {
+		for _, item := range items {
 			timestamp := item.PublishedParsed.Format(time.RFC3339)
 			timestamp = strings.Split(timestamp, "T")[0]
 			fmt.Println(
