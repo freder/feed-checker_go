@@ -134,7 +134,12 @@ func checkFeeds() {
 
 			filtered := make([]*gofeed.Item, 0)
 			for _, item := range feed.Items {
-				if item.PublishedParsed.After(lastCheckTime) {
+				// rss and atom feeds have different date fields
+				if item.UpdatedParsed == nil {
+					item.UpdatedParsed = item.PublishedParsed
+				}
+
+				if item.UpdatedParsed.After(lastCheckTime) {
 					filtered = append(filtered, item)
 				}
 			}
@@ -160,13 +165,13 @@ func checkFeeds() {
 
 		// reverse sort by date
 		sort.Slice(items, func(i, j int) bool {
-			a := *items[i].PublishedParsed
-			b := *items[j].PublishedParsed
+			a := *items[i].UpdatedParsed
+			b := *items[j].UpdatedParsed
 			return a.After(b)
 		})
 
 		for _, item := range items {
-			timestamp := item.PublishedParsed.Format(time.RFC3339)
+			timestamp := item.UpdatedParsed.Format(time.RFC3339)
 			timestamp = strings.Split(timestamp, "T")[0]
 			fmt.Println(
 				"-",
