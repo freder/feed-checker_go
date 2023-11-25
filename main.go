@@ -100,7 +100,7 @@ func checkFeeds() {
 	now := time.Now()
 	lastCheckTime := getLastCheckTime()
 	// TODO: remove — for testing only
-	lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
+	// lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
 
 	// write current time to file
 	updateLastCheckTimeFile(now)
@@ -164,7 +164,7 @@ func checkFeeds() {
 		fmt.Println(name + ": " + fmt.Sprint(c))
 
 		// reverse sort by date
-		sort.Slice(items, func(i, j int) bool {
+		sort.SliceStable(items, func(i, j int) bool {
 			a := *items[i].UpdatedParsed
 			b := *items[j].UpdatedParsed
 			return a.After(b)
