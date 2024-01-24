@@ -29,7 +29,7 @@ func checkFeeds() {
 	// lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
 
 	// write current time to file
-	updateLastCheckTimeFile(now)
+	updateLastCheckTimeFile(&now)
 
 	var wg sync.WaitGroup
 

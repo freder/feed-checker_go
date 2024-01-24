@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func updateLastCheckTimeFile(now time.Time) {
+func updateLastCheckTimeFile(now *time.Time) {
 	timeFile, err := os.Create(lastCheckTimeFilePath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error creating file:", err)
