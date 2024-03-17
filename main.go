@@ -112,25 +112,25 @@ func checkFeeds() {
 	}
 }
 
-func printUsage() {
+func printUsageAndExit() {
 	// name := os.Args[0]
 	name := "<this>"
 	fmt.Println("Usage: ./" + name + " list|check")
+	os.Exit(1)
 }
 
 func main() {
 	args := os.Args[1:] // skip program name
 	if len(args) != 1 {
-		printUsage()
-		os.Exit(1)
+		printUsageAndExit()
 	}
+
 	switch args[0] {
 	case "list":
 		listFeeds()
 	case "check":
 		checkFeeds()
 	default:
-		printUsage()
-		os.Exit(1)
+		printUsageAndExit()
 	}
 }

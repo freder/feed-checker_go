@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -12,14 +13,12 @@ import (
 func updateLastCheckTimeFile(now *time.Time) {
 	timeFile, err := os.Create(lastCheckTimeFilePath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating file:", err)
-		os.Exit(1)
+		log.Fatal("Error creating file:", err)
 	}
 	defer timeFile.Close()
 	_, err = timeFile.WriteString(now.Format(time.RFC3339))
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error writing to file:", err)
-		os.Exit(1)
+		log.Fatal("Error writing to file:", err)
 	}
 }
 
@@ -31,13 +30,11 @@ func getLastCheckTime() time.Time {
 	} else {
 		bytes, err := os.ReadFile(lastCheckTimeFilePath)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading file:", err)
-			os.Exit(1)
+			log.Fatal("Error reading file:", err)
 		}
 		parsed, err := time.Parse(time.RFC3339, string(bytes))
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error parsing time:", err)
-			os.Exit(1)
+			log.Fatal("Error parsing time:", err)
 		}
 		lastCheckTime = parsed
 	}
@@ -48,8 +45,7 @@ func getLastCheckTime() time.Time {
 func readFeedUrls() map[string]string {
 	file, err := os.Open(feedsFilePath)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error opening file:", err)
-		os.Exit(1)
+		log.Fatal("Error opening file:", err)
 	}
 	defer file.Close()
 
@@ -57,8 +53,7 @@ func readFeedUrls() map[string]string {
 	var data map[string]string
 	err = decoder.Decode(&data)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error decoding JSON:", err)
-		os.Exit(1)
+		log.Fatal("Error decoding JSON:", err)
 	}
 	return data
 }
