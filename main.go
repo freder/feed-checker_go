@@ -40,6 +40,7 @@ func checkFeeds() {
 
 	feedsMap := readFeedUrls()
 	var results = make(map[string][]*gofeed.Item)
+	var mutex sync.Mutex
 
 	for name, url := range feedsMap {
 		wg.Add(1)
@@ -69,7 +70,10 @@ func checkFeeds() {
 					filtered = append(filtered, item)
 				}
 			}
+
+			mutex.Lock()
 			results[name] = filtered
+			mutex.Unlock()
 
 			<-sem // release
 		}(name, url)
