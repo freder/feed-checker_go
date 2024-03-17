@@ -15,6 +15,11 @@ const feedsFilePath = "../../feeds.json"
 const lastCheckTimeFilePath = "./last-check.txt"
 const maxConcurrency = 3
 
+type result struct {
+	name  string
+	items []*gofeed.Item
+}
+
 func listFeeds() {
 	feedsMap := readFeedUrls()
 	for name, url := range feedsMap {
@@ -39,8 +44,7 @@ func checkFeeds() {
 	sem := make(chan struct{}, maxConcurrency)
 
 	feedsMap := readFeedUrls()
-	var results = make(map[string][]*gofeed.Item)
-	var mutex sync.Mutex
+	results := make(chan result, len(feedsMap))
 
 	for name, url := range feedsMap {
 		wg.Add(1)
@@ -71,19 +75,20 @@ func checkFeeds() {
 				}
 			}
 
-			mutex.Lock()
-			results[name] = filtered
-			mutex.Unlock()
-
+			results <- result{name, filtered}
 			<-sem // release
 		}(name, url)
 	}
 
 	wg.Wait()
+	close(results)
 	fmt.Println()
 
 	newItemsCount := 0
-	for name, items := range results {
+	for result := range results {
+		name := result.name
+		items := result.items
+
 		c := len(items)
 		if c == 0 {
 			continue
