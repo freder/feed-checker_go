@@ -1,4 +1,4 @@
-module rss-fetcher
+module freder.rss-fetcher
 
 go 1.21.4
 

@@ -1,4 +1,4 @@
-package main
+package utils
 
 import (
 	"encoding/json"
@@ -10,8 +10,8 @@ import (
 	"time"
 )
 
-func updateLastCheckTimeFile(now *time.Time) {
-	timeFile, err := os.Create(lastCheckTimeFilePath)
+func UpdateLastCheckTimeFile(filePath string, now *time.Time) {
+	timeFile, err := os.Create(filePath)
 	if err != nil {
 		log.Fatal("Error creating file:", err)
 	}
@@ -22,13 +22,13 @@ func updateLastCheckTimeFile(now *time.Time) {
 	}
 }
 
-func getLastCheckTime() time.Time {
+func GetLastCheckTime(filePath string) time.Time {
 	var lastCheckTime time.Time
 
-	if _, err := os.Stat(lastCheckTimeFilePath); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		lastCheckTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
 	} else {
-		bytes, err := os.ReadFile(lastCheckTimeFilePath)
+		bytes, err := os.ReadFile(filePath)
 		if err != nil {
 			log.Fatal("Error reading file:", err)
 		}
@@ -42,8 +42,8 @@ func getLastCheckTime() time.Time {
 	return lastCheckTime
 }
 
-func readFeedUrls() map[string]string {
-	file, err := os.Open(feedsFilePath)
+func ReadFeedUrls(filePath string) map[string]string {
+	file, err := os.Open(filePath)
 	if err != nil {
 		log.Fatal("Error opening file:", err)
 	}
@@ -58,7 +58,7 @@ func readFeedUrls() map[string]string {
 	return data
 }
 
-func requestFeed(url string) string {
+func RequestFeed(url string) string {
 	res, err := http.Get(url)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error getting feed:", err)

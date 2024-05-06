@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"freder.rss-fetcher/utils"
 	"github.com/mmcdole/gofeed"
 )
 
@@ -21,7 +22,7 @@ type result struct {
 }
 
 func listFeeds() {
-	feedsMap := readFeedUrls()
+	feedsMap := utils.ReadFeedUrls(feedsFilePath)
 	for name, url := range feedsMap {
 		fmt.Printf("%s: %s\n", name, url)
 	}
@@ -29,12 +30,12 @@ func listFeeds() {
 
 func checkFeeds() {
 	now := time.Now()
-	lastCheckTime := getLastCheckTime()
+	lastCheckTime := utils.GetLastCheckTime(lastCheckTimeFilePath)
 	// TODO: remove — for testing only
 	// lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
 
 	// write current time to file
-	updateLastCheckTimeFile(&now)
+	utils.UpdateLastCheckTimeFile(lastCheckTimeFilePath, &now)
 
 	var wg sync.WaitGroup
 
@@ -43,7 +44,7 @@ func checkFeeds() {
 	// struct{} is an empty struct, which takes up no memory
 	sem := make(chan struct{}, maxConcurrency)
 
-	feedsMap := readFeedUrls()
+	feedsMap := utils.ReadFeedUrls(feedsFilePath)
 	results := make(chan result, len(feedsMap))
 
 	for name, url := range feedsMap {
@@ -52,7 +53,7 @@ func checkFeeds() {
 			sem <- struct{}{} // blocks if channel is full
 			defer wg.Done()
 
-			content := requestFeed(url)
+			content := utils.RequestFeed(url)
 			fmt.Print(".") // progress indicator
 
 			// parse feed
