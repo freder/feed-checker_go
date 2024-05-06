@@ -1,3 +1,4 @@
+Checks a list of RSS/Atom feeds for new posts.
 
 
 ## Run
