@@ -1,8 +1,21 @@
+
+
+## Run
+
 ```shell
-go run . list|check
+go run . <command>
 
 # or:
 
 go build --ldflags "-s -w"
-./rss-fetcher list|check
+./rss-checker <command>
+```
+
+## Commands
+
+```shell
+add    <feed-url>  # add a feed
+remove <feed-url>  # remove a feed
+list               # list all feeds
+check              # check all feeds for new items
 ```

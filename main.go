@@ -2,83 +2,107 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"freder.rss-fetcher/utils"
+	"freder.rss-checker/database"
+	"freder.rss-checker/utils"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/mmcdole/gofeed"
 )
 
-const feedsFilePath = "../../feeds.json"
-const lastCheckTimeFilePath = "./last-check.txt"
-const maxConcurrency = 3
+const dbFilePath = "./db.sqlite"
+const maxConcurrency = 5
 
 type feedFetchResult struct {
 	name  string
 	items []*gofeed.Item
 }
 
+func addFeed(feedUrl string) {
+	_, err := url.Parse(feedUrl)
+	if err != nil {
+		fmt.Println("Invalid URL:", err)
+		os.Exit(1)
+	}
+
+	db := database.OpenDb(dbFilePath)
+	defer db.Close()
+	database.InsertFeed(db, feedUrl)
+}
+
+func removeFeed(feedUrl string) {
+	db := database.OpenDb(dbFilePath)
+	defer db.Close()
+	database.RemoveFeed(db, feedUrl)
+}
+
 func listFeeds() {
-	feedsMap := utils.ReadFeedUrls(feedsFilePath)
+	db := database.OpenDb(dbFilePath)
+	defer db.Close()
+	feedsMap := database.GetFeedUrls(db)
 	for name, url := range feedsMap {
 		fmt.Printf("%s: %s\n", name, url)
 	}
 }
 
 func checkFeeds() {
-	now := time.Now()
-	lastCheckTime := utils.GetLastCheckTime(lastCheckTimeFilePath)
-	// TODO: remove — for testing only
-	// lastCheckTime = time.Date(2023, 6, 1, 0, 0, 0, 0, time.Local)
-
-	// write current time to file
-	utils.UpdateLastCheckTimeFile(lastCheckTimeFilePath, &now)
+	db := database.OpenDb(dbFilePath)
+	defer db.Close()
 
 	var wg sync.WaitGroup
 
 	// create a buffered channel (which acts as a semaphone)
 	// to control concurrency
-	// struct{} is an empty struct, which takes up no memory
-	sem := make(chan struct{}, maxConcurrency)
+	sem := make(
+		chan struct{}, // empty struct takes up no memory
+		maxConcurrency,
+	)
 
-	feedsMap := utils.ReadFeedUrls(feedsFilePath)
-	results := make(chan feedFetchResult, len(feedsMap))
+	feeds := database.GetFeeds(db)
+	results := make(chan *feedFetchResult, len(feeds))
 
-	for name, url := range feedsMap {
+	for _, feed := range feeds {
 		wg.Add(1)
-		go func(name string, url string) {
+		go func(name string, url string, lastCheck string) {
 			sem <- struct{}{} // blocks if channel is full
 			defer wg.Done()
+			defer (func() {
+				<-sem // release
+			})()
 
-			content := utils.RequestFeed(url)
 			fmt.Print(".") // progress indicator
 
-			// parse feed
-			parser := gofeed.NewParser()
-			feed, err := parser.ParseString(content)
+			feed, err := utils.RequestAndParseFeed(url)
 			if err != nil {
-				fmt.Fprintln(os.Stderr, "Error parsing feed:", err)
+				fmt.Fprintln(os.Stderr, err)
+				results <- nil
 				return
 			}
 
-			filtered := make([]*gofeed.Item, 0)
-			for _, item := range feed.Items {
-				// rss and atom feeds have different date fields
-				if item.UpdatedParsed == nil {
-					item.UpdatedParsed = item.PublishedParsed
-				}
+			// update last check time
+			database.UpdateFeedLastCheck(db, url, time.Now())
 
-				if item.UpdatedParsed.After(lastCheckTime) {
-					filtered = append(filtered, item)
+			var lastCheckTime time.Time
+			if lastCheck == "" { // first time checking
+				lastCheckTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
+			} else {
+				lastCheckTime, err = time.Parse(time.RFC3339, lastCheck)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, err)
+					results <- nil
+					return
 				}
 			}
 
-			results <- feedFetchResult{name, filtered}
-			<-sem // release
-		}(name, url)
+			newItems := utils.FilterByDate(feed, lastCheckTime)
+
+			results <- &feedFetchResult{name, newItems}
+		}(feed.Title, feed.Url, feed.LastCheck)
 	}
 
 	wg.Wait()
@@ -87,9 +111,11 @@ func checkFeeds() {
 
 	newItemsCount := 0
 	for result := range results {
-		name := result.name
-		items := result.items
+		if result == nil {
+			continue
+		}
 
+		items := result.items
 		count := len(items)
 		if count == 0 {
 			continue
@@ -97,7 +123,7 @@ func checkFeeds() {
 
 		newItemsCount += count
 		fmt.Println()
-		fmt.Println(name + ": " + fmt.Sprint(count))
+		fmt.Println(result.name + ": " + fmt.Sprint(count))
 
 		// reverse sort by date
 		sort.SliceStable(items, func(i, j int) bool {
@@ -114,6 +140,7 @@ func checkFeeds() {
 				fmt.Sprintf("(%s)", timestamp),
 				item.Title,
 			)
+			fmt.Println(" ", item.Link)
 		}
 	}
 
@@ -124,22 +151,37 @@ func checkFeeds() {
 
 func printUsageAndExit() {
 	executable := os.Args[0]
-	fmt.Println("Usage: " + executable + " list|check")
+	lines := []string{
+		executable + " add <feed-url>",
+		executable + " remove <feed-url>",
+		executable + " list",
+		executable + " check",
+	}
+	fmt.Println("Usage:\n" + strings.Join(lines, "\n"))
 	os.Exit(1)
 }
 
 func main() {
 	args := os.Args[1:] // skip program name
-	if len(args) != 1 {
-		printUsageAndExit()
-	}
-
-	switch args[0] {
-	case "list":
-		listFeeds()
-	case "check":
-		checkFeeds()
-	default:
+	if len(args) == 1 {
+		switch args[0] {
+		case "list":
+			listFeeds()
+		case "check":
+			checkFeeds()
+		default:
+			printUsageAndExit()
+		}
+	} else if len(args) == 2 {
+		switch args[0] {
+		case "add":
+			addFeed(args[1])
+		case "remove":
+			removeFeed(args[1])
+		default:
+			printUsageAndExit()
+		}
+	} else {
 		printUsageAndExit()
 	}
 }

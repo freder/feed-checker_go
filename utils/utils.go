@@ -1,76 +1,54 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
-	"os"
 	"time"
+
+	"github.com/mmcdole/gofeed"
 )
 
-func UpdateLastCheckTimeFile(filePath string, now *time.Time) {
-	timeFile, err := os.Create(filePath)
-	if err != nil {
-		log.Fatal("Error creating file:", err)
-	}
-	defer timeFile.Close()
-	_, err = timeFile.WriteString(now.Format(time.RFC3339))
-	if err != nil {
-		log.Fatal("Error writing to file:", err)
-	}
-}
-
-func GetLastCheckTime(filePath string) time.Time {
-	var lastCheckTime time.Time
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		lastCheckTime = time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
-	} else {
-		bytes, err := os.ReadFile(filePath)
-		if err != nil {
-			log.Fatal("Error reading file:", err)
-		}
-		parsed, err := time.Parse(time.RFC3339, string(bytes))
-		if err != nil {
-			log.Fatal("Error parsing time:", err)
-		}
-		lastCheckTime = parsed
-	}
-
-	return lastCheckTime
-}
-
-func ReadFeedUrls(filePath string) map[string]string {
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Fatal("Error opening file:", err)
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	var data map[string]string
-	err = decoder.Decode(&data)
-	if err != nil {
-		log.Fatal("Error decoding JSON:", err)
-	}
-	return data
-}
-
-func RequestFeed(url string) string {
+func RequestFeed(url string) (string, error) {
 	res, err := http.Get(url)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error getting feed:", err)
-		return ""
+		return "", fmt.Errorf("filed to fetch feed: %w", err)
 	}
 	defer res.Body.Close()
 
 	body, err := io.ReadAll(res.Body)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading body:", err)
-		return ""
+		return "", fmt.Errorf("failed to read body: %w", err)
 	}
 
-	return string(body)
+	return string(body), nil
+}
+
+func RequestAndParseFeed(url string) (*gofeed.Feed, error) {
+	content, err := RequestFeed(url)
+	if err != nil {
+		return nil, err
+	}
+	parser := gofeed.NewParser()
+	feed, err := parser.ParseString(content)
+	if err != nil {
+		return nil, err
+	}
+	return feed, nil
+}
+
+func FilterByDate(feed *gofeed.Feed, lastCheckTime time.Time) []*gofeed.Item {
+	newItems := make([]*gofeed.Item, 0)
+	for _, item := range feed.Items {
+		// rss and atom feeds have different date fields
+		if item.UpdatedParsed == nil {
+			item.UpdatedParsed = item.PublishedParsed
+		}
+
+		// only keep new items
+		if item.UpdatedParsed.After(lastCheckTime) {
+			newItems = append(newItems, item)
+		}
+	}
+	return newItems
 }
