@@ -16,7 +16,7 @@ const feedsFilePath = "../../feeds.json"
 const lastCheckTimeFilePath = "./last-check.txt"
 const maxConcurrency = 3
 
-type result struct {
+type feedFetchResult struct {
 	name  string
 	items []*gofeed.Item
 }
@@ -45,7 +45,7 @@ func checkFeeds() {
 	sem := make(chan struct{}, maxConcurrency)
 
 	feedsMap := utils.ReadFeedUrls(feedsFilePath)
-	results := make(chan result, len(feedsMap))
+	results := make(chan feedFetchResult, len(feedsMap))
 
 	for name, url := range feedsMap {
 		wg.Add(1)
@@ -76,7 +76,7 @@ func checkFeeds() {
 				}
 			}
 
-			results <- result{name, filtered}
+			results <- feedFetchResult{name, filtered}
 			<-sem // release
 		}(name, url)
 	}
@@ -90,14 +90,14 @@ func checkFeeds() {
 		name := result.name
 		items := result.items
 
-		c := len(items)
-		if c == 0 {
+		count := len(items)
+		if count == 0 {
 			continue
 		}
 
-		newItemsCount += c
+		newItemsCount += count
 		fmt.Println()
-		fmt.Println(name + ": " + fmt.Sprint(c))
+		fmt.Println(name + ": " + fmt.Sprint(count))
 
 		// reverse sort by date
 		sort.SliceStable(items, func(i, j int) bool {
@@ -123,9 +123,8 @@ func checkFeeds() {
 }
 
 func printUsageAndExit() {
-	// name := os.Args[0]
-	name := "<this>"
-	fmt.Println("Usage: ./" + name + " list|check")
+	executable := os.Args[0]
+	fmt.Println("Usage: " + executable + " list|check")
 	os.Exit(1)
 }
 
