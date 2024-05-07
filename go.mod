@@ -1,4 +1,4 @@
-module freder.rss-checker
+module freder.feed-checker
 
 go 1.21.4
 

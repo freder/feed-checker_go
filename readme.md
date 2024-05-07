@@ -1,4 +1,4 @@
-Checks a list of RSS/Atom feeds for new posts.
+Checks a list of RSS / Atom feeds for new posts.
 
 
 ## Run
@@ -9,7 +9,7 @@ go run . <command>
 # or:
 
 go build --ldflags "-s -w"
-./rss-checker <command>
+./feed-checker <command>
 ```
 
 ## Commands

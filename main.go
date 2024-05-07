@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"freder.rss-checker/database"
-	"freder.rss-checker/utils"
+	"freder.feed-checker/database"
+	"freder.feed-checker/utils"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mmcdole/gofeed"
 )

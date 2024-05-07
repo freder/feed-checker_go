@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"freder.rss-checker/utils"
+	"freder.feed-checker/utils"
 	"github.com/mmcdole/gofeed"
 )
 
