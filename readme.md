@@ -12,7 +12,7 @@ go build --ldflags "-s -w"
 ./feed-checker <command>
 ```
 
-## Commands
+### Commands
 
 ```shell
 add    <feed-url>  # add a feed
