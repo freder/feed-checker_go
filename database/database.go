@@ -28,7 +28,7 @@ func OpenDb(dbFilePath string) *sql.DB {
 	}
 
 	// create a table if it doesn't exist
-	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS feeds (
+	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS ` + tableName + ` (
 		id         INTEGER PRIMARY KEY,
 		url        TEXT NOT NULL UNIQUE,
 		title      TEXT NOT NULL,
