@@ -37,9 +37,9 @@ func RequestAndParseFeed(url string) (*gofeed.Feed, error) {
 	return feed, nil
 }
 
-func FilterByDate(feed *gofeed.Feed, lastCheckTime time.Time) []*gofeed.Item {
+func FilterByDate(items []*gofeed.Item, lastCheckTime time.Time) []*gofeed.Item {
 	newItems := make([]*gofeed.Item, 0)
-	for _, item := range feed.Items {
+	for _, item := range items {
 		// rss and atom feeds have different date fields
 		if item.UpdatedParsed == nil {
 			item.UpdatedParsed = item.PublishedParsed

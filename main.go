@@ -16,7 +16,7 @@ import (
 )
 
 const dbFilePath = "./db.sqlite"
-const maxConcurrency = 5
+const maxConcurrency = 4
 
 type feedFetchResult struct {
 	name  string
@@ -99,7 +99,15 @@ func checkFeeds() {
 				}
 			}
 
-			newItems := utils.FilterByDate(feed, lastCheckTime)
+			// filter by date
+			newItems := utils.FilterByDate(feed.Items, lastCheckTime)
+
+			// reverse sort by date
+			sort.SliceStable(newItems, func(i, j int) bool {
+				a := *newItems[i].UpdatedParsed
+				b := *newItems[j].UpdatedParsed
+				return a.After(b)
+			})
 
 			results <- &feedFetchResult{name, newItems}
 		}(feed.Title, feed.Url, feed.LastCheck)
@@ -124,13 +132,6 @@ func checkFeeds() {
 		newItemsCount += count
 		fmt.Println()
 		fmt.Println(result.name + ": " + fmt.Sprint(count))
-
-		// reverse sort by date
-		sort.SliceStable(items, func(i, j int) bool {
-			a := *items[i].UpdatedParsed
-			b := *items[j].UpdatedParsed
-			return a.After(b)
-		})
 
 		for _, item := range items {
 			timestamp := item.UpdatedParsed.Format(time.RFC3339)
