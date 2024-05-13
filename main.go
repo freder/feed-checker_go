@@ -58,7 +58,7 @@ func checkFeeds() {
 
 	// create a buffered channel (which acts as a semaphone)
 	// to control concurrency
-	sem := make(
+	ch := make(
 		chan struct{}, // empty struct takes up no memory
 		maxConcurrency,
 	)
@@ -69,10 +69,10 @@ func checkFeeds() {
 	for _, feed := range feeds {
 		wg.Add(1)
 		go func(name string, url string, lastCheck string) {
-			sem <- struct{}{} // blocks if channel is full
+			ch <- struct{}{} // blocks if channel is full
 			defer wg.Done()
 			defer (func() {
-				<-sem // release
+				<-ch // release
 			})()
 
 			fmt.Print(".") // progress indicator
